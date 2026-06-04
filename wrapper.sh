@@ -101,6 +101,35 @@ if [ -f "$POSTGRES_CONF_FILE" ] && ! grep -q "pg_stat_statements" "$POSTGRES_CON
   fi
 fi
 
+# Adds pg_cron to shared_preload_libraries in a config file
+# Usage: add_pg_cron <config_file>
+add_pg_cron() {
+  local config_file="$1"
+  local current_libs
+  # Extract value - handles quoted ('val', "val") and unquoted (val) formats
+  current_libs=$(grep -E "^[[:space:]]*shared_preload_libraries" "$config_file" 2>/dev/null | tail -1 | sed "s/.*=[[:space:]]*//; s/^['\"]//; s/['\"].*$//; s/[[:space:]]*$//")
+  if [ -n "$current_libs" ]; then
+    echo "shared_preload_libraries = '${current_libs},pg_cron'" >> "$config_file"
+    echo "cron.database_name = '$POSTGRES_DB'" >> "$config_file"
+  else
+    echo "shared_preload_libraries = 'pg_cron'" >> "$config_file"
+    echo "cron.database_name = '$POSTGRES_DB'" >> "$config_file"
+  fi
+}
+
+# Ensure pg_cron is in shared_preload_libraries for existing databases
+# This handles databases created before this setting was added
+AUTO_CONF_FILE="$PGDATA/postgresql.auto.conf"
+if [ -f "$POSTGRES_CONF_FILE" ] && ! grep -q "pg_cron" "$POSTGRES_CONF_FILE"; then
+  echo "Adding pg_cron to shared_preload_libraries..."
+  add_pg_cron "$POSTGRES_CONF_FILE"
+  # Only update auto.conf if it has shared_preload_libraries set (which would override postgresql.conf)
+  # and doesn't already have pg_cron
+  if grep -q "^[[:space:]]*shared_preload_libraries" "$AUTO_CONF_FILE" 2>/dev/null && ! grep -q "pg_cron" "$AUTO_CONF_FILE" 2>/dev/null; then
+    add_pg_cron "$AUTO_CONF_FILE"
+  fi
+fi
+
 # -----------------------------------------------------------------------------
 # WAL archiving + PITR (tool-agnostic env contract)
 #
