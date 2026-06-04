@@ -1,8 +1,6 @@
 name: Build and Push PostgreSQL Images
 
 on:
-  schedule:
-    - cron: "0 0 * * 1"  # Every Monday at midnight UTC
   workflow_dispatch:
   push:
     branches:
@@ -13,7 +11,7 @@ on:
       - ".github/workflows/build-and-push.yml"
 
 env:
-  LATEST_POSTGRES_MAJOR: 16  # Change this to update which version gets tagged as 'latest'
+  LATEST_POSTGRES_MAJOR: 18  # Change this to update which version gets tagged as 'latest'
 
 jobs:
   build-postgres:
